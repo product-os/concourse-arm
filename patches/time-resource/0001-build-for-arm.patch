@@ -1,0 +1,57 @@
+From e307c7e1b79bbb29ad796ab886b4eba453b775ab Mon Sep 17 00:00:00 2001
+From: Petros Angelatos <petrosagg@gmail.com>
+Date: Thu, 9 Aug 2018 15:22:41 -0700
+Subject: [PATCH] build for arm
+
+Signed-off-by: Petros Angelatos <petrosagg@gmail.com>
+---
+ .dockerignore |  1 +
+ Dockerfile    | 12 ++++++++++--
+ 2 files changed, 11 insertions(+), 2 deletions(-)
+ create mode 100644 .dockerignore
+
+diff --git a/.dockerignore b/.dockerignore
+new file mode 100644
+index 0000000..6b8710a
+--- /dev/null
++++ b/.dockerignore
+@@ -0,0 +1 @@
++.git
+diff --git a/Dockerfile b/Dockerfile
+index 21cd8e1..8fe9381 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -1,4 +1,6 @@
+-FROM golang:alpine as builder
++FROM resin/armv7hf-alpine-golang as builder
++COPY ./qemu-arm-static-3.0.0 /usr/bin/qemu-arm-static
++RUN [ "cross-build-start" ]
+ COPY . /go/src/github.com/concourse/time-resource
+ ENV CGO_ENABLED 0
+ ENV GOPATH /go/src/github.com/concourse/time-resource/Godeps/_workspace:${GOPATH}
+@@ -9,15 +11,21 @@ RUN go build -o /assets/check github.com/concourse/time-resource/check
+ RUN set -e; for pkg in $(go list ./...); do \
+ 		go test -o "/tests/$(basename $pkg).test" -c $pkg; \
+ 	done
++RUN [ "cross-build-end" ]
+ 
+-FROM alpine:edge AS resource
++FROM resin/armv7hf-alpine:edge AS resource
++COPY ./qemu-arm-static-3.0.0 /usr/bin/qemu-arm-static
++RUN [ "cross-build-start" ]
+ RUN apk add --update bash tzdata
+ COPY --from=builder /assets /opt/resource
++RUN [ "cross-build-end" ]
+ 
+ FROM resource AS tests
++RUN [ "cross-build-start" ]
+ COPY --from=builder /tests /tests
+ RUN set -e; for test in /tests/*.test; do \
+ 		$test; \
+ 	done
++RUN [ "cross-build-end" ]
+ 
+ FROM resource
+-- 
+2.18.0
+

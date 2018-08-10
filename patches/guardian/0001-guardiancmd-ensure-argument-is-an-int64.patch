@@ -1,0 +1,31 @@
+From 8fb82e9dc0058c3ad8aa1db13ffaff25f5ef9030 Mon Sep 17 00:00:00 2001
+From: Petros Angelatos <petrosagg@gmail.com>
+Date: Wed, 8 Aug 2018 20:50:51 -0700
+Subject: [PATCH] guardiancmd: ensure argument is an int64
+
+When building guardian on 32bit platforms go will complain for overflows
+because strconv.Itoa's argument is of type int.
+
+Switch to FormatInt that accepts a int64.
+
+Signed-off-by: Petros Angelatos <petrosagg@gmail.com>
+---
+ guardiancmd/command.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/guardiancmd/command.go b/guardiancmd/command.go
+index 020105f..68f32b5 100644
+--- a/guardiancmd/command.go
++++ b/guardiancmd/command.go
+@@ -356,7 +356,7 @@ func (cmd *ServerCommand) Execute([]string) error {
+ }
+ 
+ func newInitStoreCommand(pluginPath string, pluginGlobalArgs []string) *exec.Cmd {
+-	return exec.Command(pluginPath, append(pluginGlobalArgs, "init-store", "--store-size-bytes", strconv.Itoa(10*1024*1024*1024))...)
++	return exec.Command(pluginPath, append(pluginGlobalArgs, "init-store", "--store-size-bytes", strconv.FormatInt(10*1024*1024*1024, 10))...)
+ }
+ 
+ func runCommand(cmd *exec.Cmd) {
+-- 
+2.18.0
+

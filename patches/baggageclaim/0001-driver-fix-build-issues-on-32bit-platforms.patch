@@ -1,0 +1,38 @@
+From 80a4d71be3a1537c0ed40c587e3d5c68283d80d3 Mon Sep 17 00:00:00 2001
+From: Petros Angelatos <petrosagg@gmail.com>
+Date: Wed, 8 Aug 2018 20:53:42 -0700
+Subject: [PATCH] driver: fix build issues on 32bit platforms
+
+fsStat.Type is int32 on 32bit platforms and 0x9123683e overflows it.
+
+Related-to: moby/moby#9988
+Signed-off-by: Petros Angelatos <petrosagg@gmail.com>
+---
+ baggageclaimcmd/driver_linux.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/baggageclaimcmd/driver_linux.go b/baggageclaimcmd/driver_linux.go
+index a8b1870..fc450c3 100644
+--- a/baggageclaimcmd/driver_linux.go
++++ b/baggageclaimcmd/driver_linux.go
+@@ -17,7 +17,7 @@ import (
+ 	"github.com/concourse/baggageclaim/volume/driver"
+ )
+ 
+-const btrfsFSType = 0x9123683e
++const btrfsFSType = uint32(0x9123683e)
+ 
+ func (cmd *BaggageclaimCommand) driver(logger lager.Logger) (volume.Driver, error) {
+ 	var fsStat syscall.Statfs_t
+@@ -51,7 +51,7 @@ func (cmd *BaggageclaimCommand) driver(logger lager.Logger) (volume.Driver, erro
+ 
+ 	volumesDir := cmd.VolumesDir.Path()
+ 
+-	if cmd.Driver == "btrfs" && fsStat.Type != btrfsFSType {
++	if cmd.Driver == "btrfs" && uint32(fsStat.Type) != btrfsFSType {
+ 		volumesImage := volumesDir + ".img"
+ 		filesystem := fs.New(logger.Session("fs"), volumesImage, volumesDir, cmd.MkfsBin)
+ 
+-- 
+2.18.0
+

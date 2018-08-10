@@ -1,0 +1,59 @@
+From f1bd680bbcf34d027bf8687ceff2eb4176092de2 Mon Sep 17 00:00:00 2001
+From: Petros Angelatos <petrosagg@gmail.com>
+Date: Thu, 9 Aug 2018 09:11:15 -0700
+Subject: [PATCH] build for arm
+
+Signed-off-by: Petros Angelatos <petrosagg@gmail.com>
+---
+ Dockerfile | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/Dockerfile b/Dockerfile
+index 5f1ca42..1361ccc 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -1,4 +1,6 @@
+-FROM alpine:edge AS tunnelbuilder
++FROM resin/armv7hf-alpine:edge AS tunnelbuilder
++COPY ./qemu-arm-static-3.0.0 /usr/bin/qemu-arm-static
++RUN [ "cross-build-start" ]
+ RUN apk --no-cache add git make gcc g++ libressl-dev
+ 
+ WORKDIR /root
+@@ -6,8 +8,11 @@ RUN git clone https://github.com/proxytunnel/proxytunnel.git
+ 
+ WORKDIR /root/proxytunnel
+ RUN make
++RUN [ "cross-build-end" ]
+ 
+-FROM alpine:edge AS resource
++FROM resin/armv7hf-alpine:edge AS resource
++COPY ./qemu-arm-static-3.0.0 /usr/bin/qemu-arm-static
++RUN [ "cross-build-start" ]
+ 
+ RUN apk --no-cache add \
+   bash \
+@@ -194,15 +199,20 @@ WORKDIR         /usr/lib
+ RUN             rm -rf \
+                     perl \
+                     perl5
++RUN [ "cross-build-end" ]
+ 
+ FROM resource AS tests
++RUN [ "cross-build-start" ]
+ ADD test/ /tests
+ RUN /tests/all.sh
++RUN [ "cross-build-end" ]
+ 
+ FROM resource AS integrationtests
++RUN [ "cross-build-start" ]
+ RUN apk --no-cache add squid
+ ADD test/ /tests/test
+ ADD integration-tests /tests/integration-tests
+ RUN /tests/integration-tests/integration.sh
++RUN [ "cross-build-end" ]
+ 
+ FROM resource
+-- 
+2.18.0
+
