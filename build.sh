@@ -17,7 +17,7 @@ build_resource_type() {
 	pushd "$name-resource"
 		git reset --hard
 		git clean -ffxd
-		git apply < "$base/patches/$name-resource/0001-build-for-arm.patch"
+		git apply < "$base/patches/arm/$name-resource/0001-build-for-arm.patch"
 		cp "$base/qemu-arm-static-3.0.0" .
 
 		docker build -t "$name-resource" .
@@ -33,7 +33,7 @@ pushd "$workdir"
 	[ -d "concourse" ] || git clone --branch="$VERSION" --recursive 'https://github.com/concourse/concourse'
 	pushd ./concourse/src/github.com/concourse/baggageclaim
 		git reset --hard
-		git apply < "$base/patches/baggageclaim/0001-driver-fix-build-issues-on-32bit-platforms.patch"
+		git apply < "$base/patches/arm/baggageclaim/0001-driver-fix-build-issues-on-32bit-platforms.patch"
 	popd
 
 	# get garden-runc
@@ -42,7 +42,7 @@ pushd "$workdir"
 	find garden-runc-release -path '*/vendor/golang.org/x/net/trace' -print0 | xargs -0 --no-run-if-empty -n1 rm -r
 	pushd ./garden-runc-release/src/code.cloudfoundry.org/guardian
 		git reset --hard
-		git apply < "$base/patches/guardian/0001-guardiancmd-ensure-argument-is-an-int64.patch"
+		git apply < "$base/patches/arm/guardian/0001-guardiancmd-ensure-argument-is-an-int64.patch"
 	popd
 
 	# get final-version
@@ -69,7 +69,7 @@ pushd "$workdir"
 	pushd ./concourse/src/github.com/concourse/bin
 		cp "$base/qemu-arm-static-3.0.0" .
 		git reset --hard
-		git apply < "$base/patches/concourse-bin/0001-build-for-arm.patch"
+		git apply < "$base/patches/arm/concourse-bin/0001-build-for-arm.patch"
 		docker build -t concourse-bin .
 	popd
 
