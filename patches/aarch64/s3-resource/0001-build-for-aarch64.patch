@@ -1,0 +1,60 @@
+From 226873757a6dd25366feb308ddc3c34312db31ae Mon Sep 17 00:00:00 2001
+From: Petros Angelatos <petrosagg@gmail.com>
+Date: Thu, 9 Aug 2018 15:05:55 -0700
+Subject: [PATCH] build for aarch64
+
+Signed-off-by: Petros Angelatos <petrosagg@gmail.com>
+---
+ .dockerignore |  1 +
+ Dockerfile    | 12 ++++++++++--
+ 2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/.dockerignore b/.dockerignore
+index 9414382..96f81bc 100644
+--- a/.dockerignore
++++ b/.dockerignore
+@@ -1 +1,2 @@
+ Dockerfile
++.git
+diff --git a/Dockerfile b/Dockerfile
+index 768c6a0..914502d 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -1,4 +1,6 @@
+-FROM golang:alpine as builder
++FROM resin/aarch64-alpine-golang as builder
++COPY ./qemu-aarch64-static-3.0.0 /usr/bin/qemu-aarch64-static
++RUN [ "cross-build-start" ]
+ COPY . /go/src/github.com/concourse/s3-resource
+ ENV CGO_ENABLED 0
+ RUN go build -o /assets/in github.com/concourse/s3-resource/cmd/in
+@@ -8,13 +10,18 @@ WORKDIR /go/src/github.com/concourse/s3-resource
+ RUN set -e; for pkg in $(go list ./...); do \
+ 		go test -o "/tests/$(basename $pkg).test" -c $pkg; \
+ 	done
++RUN [ "cross-build-end" ]
+ 
+-FROM alpine:edge AS resource
++FROM resin/aarch64-alpine:edge AS resource
++COPY ./qemu-aarch64-static-3.0.0 /usr/bin/qemu-aarch64-static
++RUN [ "cross-build-start" ]
+ RUN apk add --no-cache bash tzdata ca-certificates unzip zip gzip tar
+ COPY --from=builder assets/ /opt/resource/
+ RUN chmod +x /opt/resource/*
++RUN [ "cross-build-end" ]
+ 
+ FROM resource AS tests
++RUN [ "cross-build-start" ]
+ ARG S3_TESTING_ACCESS_KEY_ID
+ ARG S3_TESTING_SECRET_ACCESS_KEY
+ ARG S3_TESTING_SESSION_TOKEN
+@@ -28,5 +35,6 @@ WORKDIR /go-tests
+ RUN set -e; for test in /go-tests/*.test; do \
+ 		$test; \
+ 	done
++RUN [ "cross-build-end" ]
+ 
+ FROM resource
+-- 
+2.18.0
+

@@ -1,0 +1,85 @@
+From 6034912e59de53e5119cc616471fec918dd03397 Mon Sep 17 00:00:00 2001
+From: Petros Angelatos <petrosagg@gmail.com>
+Date: Thu, 9 Aug 2018 16:59:50 -0700
+Subject: [PATCH] build for aarch64
+
+Signed-off-by: Petros Angelatos <petrosagg@gmail.com>
+---
+ Dockerfile          | 13 ++++++-------
+ ci/build-linux      |  4 ++--
+ scripts/build-linux |  2 --
+ 3 files changed, 8 insertions(+), 11 deletions(-)
+
+diff --git a/Dockerfile b/Dockerfile
+index b0191ae..301b7bc 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -1,8 +1,6 @@
+-FROM golang:1
+-
+-# install Go BOSH CLI
+-ADD https://s3.amazonaws.com/dk-shared-assets/cli-linux-feb11 /usr/local/bin/bosh
+-RUN chmod +x /usr/local/bin/bosh
++FROM resin/aarch64-golang:1-stretch
++COPY ./qemu-aarch64-static-3.0.0 /usr/bin/qemu-aarch64-static
++RUN [ "cross-build-start" ]
+ 
+ # directory in which to place prebuilt assets vendored by the concourse binary
+ RUN mkdir /opt/static-assets
+@@ -53,12 +51,12 @@ RUN set -x && \
+ RUN set -x && \
+       apt-get update && \
+       apt-get -y install liblzo2-dev libblkid-dev e2fslibs-dev libz-dev libzstd-dev && \
+-      cp /usr/lib/gcc/x86_64-linux-gnu/6/crtbeginS.o /usr/lib/gcc/x86_64-linux-gnu/6/crtbeginT.o && \
++      cp /usr/lib/gcc/aarch64-linux-gnu/6/crtbeginS.o /usr/lib/gcc/aarch64-linux-gnu/6/crtbeginT.o && \
+       cd /tmp && \
+       curl -L https://www.kernel.org/pub/linux/kernel/people/kdave/btrfs-progs/btrfs-progs-v4.15.tar.gz | tar zxf - && \
+       cd btrfs-progs-* && \
+       LDFLAGS=-static ./configure --disable-documentation && \
+-      make && \
++      make btrfs mkfs.btrfs && \
+       cp btrfs mkfs.btrfs /opt/static-assets && \
+       cd /tmp && \
+       rm -rf btrfs-progs-* && \
+@@ -74,3 +72,4 @@ RUN set -x && \
+         make install && \
+       cd /tmp && \
+       rm -rf libseccomp-*
++RUN [ "cross-build-end" ]
+diff --git a/ci/build-linux b/ci/build-linux
+index 317af35..a65729f 100755
+--- a/ci/build-linux
++++ b/ci/build-linux
+@@ -23,7 +23,7 @@ cd binary
+ go build \
+   -tags daemon \
+   -ldflags "-X main.Version=${FINAL_VERSION} -X github.com/concourse/atc/atccmd.Version=${FINAL_VERSION} -X github.com/concourse/atc/atccmd.WorkerVersion=${WORKER_VERSION} -X main.WorkerVersion=${WORKER_VERSION}" \
+-  -o concourse_linux_amd64 \
++  -o "concourse_linux_$(go env GOARCH)" \
+   github.com/concourse/bin/cmd/concourse
+ 
+-sha1sum concourse_linux_amd64 > concourse_linux_amd64.sha1
++sha1sum "concourse_linux_$(go env GOARCH)" > "concourse_linux_$(go env GOARCH).sha1"
+diff --git a/scripts/build-linux b/scripts/build-linux
+index fac35e4..57d1687 100755
+--- a/scripts/build-linux
++++ b/scripts/build-linux
+@@ -22,7 +22,6 @@ cp -aL /opt/static-assets/iptables/sbin/iptables $ASSETS_DIR/iptables/sbin/iptab
+ 
+ pushd garden-runc-release/
+   # workaround 'mv /root/.tmp/... /tmp/...: invalid cross-device link'
+-  HOME=$PWD bosh sync-blobs
+ 
+   (
+     set -e -u -x
+@@ -53,7 +52,6 @@ popd
+ 
+ pushd concourse/
+   # workaround 'mv /root/.tmp/... /tmp/...: invalid cross-device link'
+-  HOME=$PWD bosh sync-blobs
+ 
+   mkdir -p $ASSETS_DIR/resources
+ 
+-- 
+2.18.0
+

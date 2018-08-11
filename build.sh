@@ -1,8 +1,31 @@
 #!/bin/bash
 
-set -ex
+set -e
 
 VERSION="v3.14.1"
+
+usage() { echo "Usage: $0 -a <arm|aarch64> [-v]" 1>&2; exit 1; }
+
+while getopts ":a:v" opt; do
+	case ${opt} in
+		a)
+			arch=${OPTARG}
+			if  [ "$arch" == "arm" ]; then
+				export GOARCH=arm
+			elif [ "$arch" == "aarch64" ]; then
+				export GOARCH=arm64
+			else
+				usage
+			fi
+			;;
+		v)
+			set -x
+			;;
+		*) usage
+		;;
+	esac
+done
+[ -z "$arch" ] && usage
 
 base="$PWD"
 workdir="$base/workdir"
@@ -17,8 +40,13 @@ build_resource_type() {
 	pushd "$name-resource"
 		git reset --hard
 		git clean -ffxd
-		git apply < "$base/patches/arm/$name-resource/0001-build-for-arm.patch"
-		cp "$base/qemu-arm-static-3.0.0" .
+
+		for patch in "$base/patches/$arch/$name-resource/"*; do
+			[[ -e $patch ]] || break
+			git apply < "$patch"
+		done
+
+		cp "$base/qemu-$arch-static-3.0.0" .
 
 		docker build -t "$name-resource" .
 		container_id=$(docker create "$name-resource")
@@ -33,7 +61,10 @@ pushd "$workdir"
 	[ -d "concourse" ] || git clone --branch="$VERSION" --recursive 'https://github.com/concourse/concourse'
 	pushd ./concourse/src/github.com/concourse/baggageclaim
 		git reset --hard
-		git apply < "$base/patches/arm/baggageclaim/0001-driver-fix-build-issues-on-32bit-platforms.patch"
+		for patch in "$base/patches/$arch/baggageclaim/"*; do
+			[[ -e $patch ]] || break
+			git apply < "$patch"
+		done
 	popd
 
 	# get garden-runc
@@ -42,7 +73,10 @@ pushd "$workdir"
 	find garden-runc-release -path '*/vendor/golang.org/x/net/trace' -print0 | xargs -0 --no-run-if-empty -n1 rm -r
 	pushd ./garden-runc-release/src/code.cloudfoundry.org/guardian
 		git reset --hard
-		git apply < "$base/patches/arm/guardian/0001-guardiancmd-ensure-argument-is-an-int64.patch"
+		for patch in "$base/patches/$arch/guardian/"*; do
+			[[ -e $patch ]] || break
+			git apply < "$patch"
+		done
 	popd
 
 	# get final-version
@@ -51,7 +85,7 @@ pushd "$workdir"
 
 	# build fly-rc
 	mkdir linux-binary
-	GOARCH=arm ./concourse/ci/scripts/fly-build
+	./concourse/ci/scripts/fly-build
 	rm -rf fly-rc
 	mv linux-binary fly-rc
 
@@ -67,9 +101,12 @@ pushd "$workdir"
 
 	# build concourse
 	pushd ./concourse/src/github.com/concourse/bin
-		cp "$base/qemu-arm-static-3.0.0" .
+		cp "$base/qemu-$arch-static-3.0.0" .
 		git reset --hard
-		git apply < "$base/patches/arm/concourse-bin/0001-build-for-arm.patch"
+		for patch in "$base/patches/$arch/concourse-bin/"*; do
+			[[ -e $patch ]] || break
+			git apply < "$patch"
+		done
 		docker build -t concourse-bin .
 	popd
 
@@ -78,7 +115,7 @@ pushd "$workdir"
 		-v "$PWD:$PWD" \
 		-w "$PWD" \
 		--rm \
-		--entrypoint=qemu-arm-static \
+		--entrypoint="qemu-$arch-static" \
 		-e QEMU_EXECVE=1 \
 		concourse-bin /bin/bash ./concourse/src/github.com/concourse/bin/ci/build-linux
 	rm -rf "$base/output"
