@@ -1,5 +1,7 @@
 ## Concourse bootstrap build for arm and aarch64
 
+See [concourse/concourse#1379](https://github.com/concourse/concourse/issues/1379) for more information
+
 ### Building
 
 Make sure you have a working Go and Docker installation on a linux x86\_64
