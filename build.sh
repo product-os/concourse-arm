@@ -117,7 +117,7 @@ pushd "$workdir"
 		--rm \
 		--entrypoint="qemu-$arch-static" \
 		-e QEMU_EXECVE=1 \
-		concourse-bin /bin/bash ./concourse/src/github.com/concourse/bin/ci/build-linux
+		concourse-bin /bin/bash -c 'rm -rf cli-artifacts; ./concourse/src/github.com/concourse/bin/ci/build-linux'
 	rm -rf "$base/output"
 	mv binary "$base/output"
 popd
