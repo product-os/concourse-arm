@@ -28,7 +28,7 @@ done
 [ -z "$arch" ] && usage
 
 base="$PWD"
-workdir="$base/workdir"
+workdir="$base/workdir-$arch"
 
 build_resource_type() {
 	name=$1
