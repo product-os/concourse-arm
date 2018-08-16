@@ -1,0 +1,68 @@
+From 1e49522812c23d0dd317b848051b6434fc34ff08 Mon Sep 17 00:00:00 2001
+From: Petros Angelatos <petrosagg@gmail.com>
+Date: Wed, 15 Aug 2018 15:57:59 -0700
+Subject: [PATCH] uidgid: fix int overflow on 32bit platforms
+
+Linux uses u32 as the {u,g}id map structures[1] but golang incorrectly
+uses ints[2]. Since changing the standard library is hard this commit
+only changes the parsing code to use the correct types and truncates the
+result to MaxInt.
+
+The effect is that on 32bit platforms the namespaces will have at most 2
+billion available uid instead of 4 billion.
+
+Signed-off-by: Petros Angelatos <petrosagg@gmail.com>
+---
+ uidgid/max_valid_uid.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/uidgid/max_valid_uid.go b/uidgid/max_valid_uid.go
+index ae65059..587f9d6 100644
+--- a/uidgid/max_valid_uid.go
++++ b/uidgid/max_valid_uid.go
+@@ -12,6 +12,8 @@ type IDMap string
+ const defaultUIDMap IDMap = "/proc/self/uid_map"
+ const defaultGIDMap IDMap = "/proc/self/gid_map"
+ 
++const maxInt = int(^uint(0) >> 1)
++
+ func Supported() bool {
+ 	return runtime.GOOS == "linux" &&
+ 		defaultUIDMap.Supported() &&
+@@ -37,18 +39,18 @@ func (u IDMap) MaxValid() (int, error) {
+ 		return 0, err
+ 	}
+ 
+-	m := 0
++	var m uint
+ 	scanner := bufio.NewScanner(f)
+ 	for scanner.Scan() {
+-		var container, host, size int
++		var container, host, size uint
+ 		if _, err := fmt.Sscanf(scanner.Text(), "%d %d %d", &container, &host, &size); err != nil {
+ 			return 0, ParseError{Line: scanner.Text(), Err: err}
+ 		}
+ 
+-		m = max(m, container+size-1)
++		m = minUint(container+size-1, uint(maxInt))
+ 	}
+ 
+-	return m, nil
++	return int(m), nil
+ }
+ 
+ func min(a, b int) int {
+@@ -59,8 +61,8 @@ func min(a, b int) int {
+ 	return b
+ }
+ 
+-func max(a, b int) int {
+-	if a > b {
++func minUint(a, b uint) uint {
++	if a < b {
+ 		return a
+ 	}
+ 
+-- 
+2.18.0
+

@@ -78,6 +78,13 @@ pushd "$workdir"
 			git apply < "$patch"
 		done
 	popd
+	pushd ./garden-runc-release/src/code.cloudfoundry.org/idmapper
+		git reset --hard
+		for patch in "$base/patches/$arch/idmapper/"*; do
+			[[ -e $patch ]] || break
+			git apply < "$patch"
+		done
+	popd
 
 	# get final-version
 	mkdir -p final-version

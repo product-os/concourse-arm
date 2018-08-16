@@ -1,0 +1,75 @@
+From f9845047c97e0d8da8949abef29a64f411a71302 Mon Sep 17 00:00:00 2001
+From: Petros Angelatos <petrosagg@gmail.com>
+Date: Wed, 15 Aug 2018 18:47:53 -0700
+Subject: [PATCH] fix int overflow on 32bit platforms
+
+Linux uses u32 as the {u,g}id map structures[1] but golang incorrectly
+uses ints[2]. Since changing the standard library is hard this commit
+only changes the parsing code to use the correct types and truncates the
+result to MaxInt.
+
+The effect is that on 32bit platforms the namespaces will have at most 2
+billion available uid instead of 4 billion.
+
+[1] https://github.com/torvalds/linux/blob/v4.17/include/linux/user_namespace.h#L17-L21
+[2] https://github.com/golang/go/blob/5c11480631f5654e9e6937ff08c453660138c64d/src/syscall/exec_linux.go#L14-L20
+
+Signed-off-by: Petros Angelatos <petrosagg@gmail.com>
+---
+ max_valid_uid.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/max_valid_uid.go b/max_valid_uid.go
+index 43d297e..c117dc7 100644
+--- a/max_valid_uid.go
++++ b/max_valid_uid.go
+@@ -11,6 +11,8 @@ type IDMap string
+ const DefaultUIDMap IDMap = "/proc/self/uid_map"
+ const DefaultGIDMap IDMap = "/proc/self/gid_map"
+ 
++const maxInt = int(^uint(0) >> 1)
++
+ func MustGetMaxValidUID() int {
+ 	return must(DefaultUIDMap.MaxValid())
+ }
+@@ -25,18 +27,18 @@ func (u IDMap) MaxValid() (int, error) {
+ 		return 0, err
+ 	}
+ 
+-	m := 0
++	var m uint
+ 	scanner := bufio.NewScanner(f)
+ 	for scanner.Scan() {
+-		var container, host, size int
++		var container, host, size uint
+ 		if _, err := fmt.Sscanf(scanner.Text(), "%d %d %d", &container, &host, &size); err != nil {
+ 			return 0, ParseError{Line: scanner.Text(), Err: err}
+ 		}
+ 
+-		m = Max(m, container+size-1)
++		m = minUint(container+size-1, uint(maxInt))
+ 	}
+ 
+-	return m, nil
++	return int(m), nil
+ }
+ 
+ func Min(a, b int) int {
+@@ -55,6 +57,14 @@ func Max(a, b int) int {
+ 	return b
+ }
+ 
++func minUint(a, b uint) uint {
++	if a < b {
++		return a
++	}
++
++	return b
++}
++
+ type ParseError struct {
+ 	Line string
+ 	Err  error
+-- 
+2.18.0
+
